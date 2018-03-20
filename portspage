@@ -1,0 +1,128 @@
+#!/usr/bin/python2
+
+import os
+import re
+import datetime
+import subprocess
+import sys
+import argparse
+
+def build_arg_parser():
+  parser = argparse.ArgumentParser(description = "Update a crux.org file and sync up port files (Pkgfile, .footprint, .md5sum, .signature)",
+                                   formatter_class = argparse.RawTextHelpFormatter)
+  parser.add_argument("CRUX_ORG", help="Location of the crux.org file to update")
+  parser.add_argument("SRC", help="Directory containing all of the original ports. This will be mirrored at DEST")
+  parser.add_argument("DEST", help="Remote location to mirror the SRC path")
+  return parser
+
+
+def check_existence(path):
+  if not os.path.exists(path):
+    print("Error: {} does not exist.".format(path))
+    sys.exit(1)
+
+def main():
+  args = build_arg_parser().parse_args()
+  crux_org_path = args.CRUX_ORG
+  ports_path = args.SRC
+  if (ports_path[-1] != '/'):
+    ports_path += '/'
+  # web_ports_path = '/home/conrad/netfile/www/crux/'
+  web_ports_path = args.DEST
+  if (web_ports_path[-1] != '/'):
+    web_ports_path += '/'
+  ports_url = 'https://www3.nd.edu/~cbailey8/crux/'
+
+  # check that things are where they should be
+  for path in [web_ports_path, ports_path, crux_org_path]:
+    check_existence(path)
+
+  print "Performing rsync..."
+  rsync(ports_path, web_ports_path)
+
+  print "Performing httpup repo generation..."
+  httpup_repgen(web_ports_path)
+
+  org_options = '''#+TITLE:       CRUX Ports
+#+AUTHOR:      Conrad Bailey
+#+EMAIL:       conradbailey92@gmail.com
+#+LANGUAGE:    en
+#+OPTIONS:     H:3 num:nil \\n:nil toc:nil ::t |:t ^:nil -:nil f:t *:t <:t
+#+DESCRIPTION: My personal CRUX Linux ports repository
+
+'''
+
+  table_separator = '|-|-|-|-|-|'
+  table_header = '{}\n| Name | Version-Release | Updated (utc) | Files | Description |\n{}\n'.format(table_separator,table_separator)
+  table = table_header
+
+  ports = os.listdir(ports_path)
+  for port in ports:
+    if port.startswith('.'):
+      continue
+    print "Adding {} to table...".format(port)
+
+    port_path = os.path.join(ports_path, port)
+    pkgfile_path = os.path.join(port_path, 'Pkgfile')
+
+    port_url = os.path.join(ports_url, port)
+    pkgfile_url   = os.path.join(port_url, 'Pkgfile')
+    md5sum_url    = os.path.join(port_url, '.md5sum')
+    footprint_url = os.path.join(port_url, '.footprint')
+    signature_url = os.path.join(port_url, '.signature')
+
+    table += '| [[{}][{}]] '.format(get_url(pkgfile_path), port) # hyperlink name -> software url
+    table += '| {} '.format(get_version_release(pkgfile_path)) # version-release
+    table += '| {} '.format(get_mtime(pkgfile_path)) # updated
+    table += '| [[{}][P]] [[{}][m]] [[{}][f]] [[{}][s]]'.format(pkgfile_url, md5sum_url, footprint_url, signature_url) # files
+    table += '| {} '.format(get_description(pkgfile_path)) # description
+    table += '|\n{}\n'.format(table_separator)
+
+  page = open(crux_org_path,'w')
+  page.write(org_options)
+  page.write("Download [[{}][cbailey.httpup]], place it in ~/etc/ports~, and run ~ports -u~ to access these ports.\n\n".format(os.path.join(ports_url,"cbailey.httpup")))
+  page.write("You can check the signatures with ~pkgmk -cs~ and my [[{}][public key]]\n\n".format(os.path.join(ports_url,"cbailey.pub")))
+  page.write(table)
+  page.close()
+
+def get_mtime(pkgfile_path):
+  return str(datetime.datetime.utcfromtimestamp(os.path.getmtime(pkgfile_path)))
+
+def get_version_release(pkgfile_path):
+  contents = open(pkgfile_path, 'r').read()
+  version = re.findall(r'version=.*', contents)[0].split('=')[1]
+  release = re.findall(r'release=.*', contents)[0].split('=')[1]
+  return "{}-{}".format(version,release)
+
+def get_description(pkgfile_path):
+  contents = open(pkgfile_path, 'r').read()
+  return re.findall(r'Description: .*', contents)[0].split(': ')[1]
+
+def get_url(pkgfile_path):
+  contents = open(pkgfile_path, 'r').read()
+  return re.findall(r'URL:         .*', contents)[0].split(':         ')[1]
+
+def rsync(ports_path, web_ports_path):
+  try:
+    # recursive (-r), and compressed (-z)
+    subprocess.check_call(["rsync","-az","--delete",
+                           "--exclude","*.html",
+                           "--exclude","*.httpup",
+                           "--exclude","*.pub",
+                           ports_path, web_ports_path])
+  except Exception as e:
+    print "An error occurred with rsync: {}".format(str(e))
+    return 1
+
+def httpup_repgen(web_ports_path):
+  try:
+    FNULL = open(os.devnull, 'w')
+    subprocess.check_call(["httpup-repgen", web_ports_path], stdout=FNULL, stderr=FNULL, close_fds=True)
+    FNULL.close()
+  except Exception as e:
+    print "An error occurred with httpup-repgen: {}".format(str(e))
+    return 1
+
+if __name__ == "__main__":
+  main()
+
