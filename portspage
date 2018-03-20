@@ -112,6 +112,7 @@ def rsync(ports_path, web_ports_path):
                            "--exclude","*.pub",
                            "--exclude",".git",
                            "--exclude",".gitignore",
+                           "--exclude","README.md",
                            ports_path, web_ports_path])
   except Exception as e:
     print "An error occurred with rsync: {}".format(str(e))
