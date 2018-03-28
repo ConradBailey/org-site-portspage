@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 import os
 import re
@@ -37,10 +37,10 @@ def main():
   for path in [web_ports_path, ports_path, crux_org_path]:
     check_existence(path)
 
-  print "Performing rsync..."
+  print("Performing rsync...")
   rsync(ports_path, web_ports_path)
 
-  print "Performing httpup repo generation..."
+  print("Performing httpup repo generation...")
   httpup_repgen(web_ports_path)
 
   org_options = '''#+TITLE:       CRUX Ports
@@ -56,11 +56,12 @@ def main():
   table_header = '{}\n| Name | Version-Release | Updated (utc) | Files | Description |\n{}\n'.format(table_separator,table_separator)
   table = table_header
 
-  ports = os.listdir(ports_path)
+  ports = filter(lambda x: os.path.isdir(os.path.join(ports_path, x)),
+                 os.listdir(ports_path))
   for port in ports:
     if port.startswith('.'):
       continue
-    print "Adding {} to table...".format(port)
+    print("Adding {} to table...".format(port))
 
     port_path = os.path.join(ports_path, port)
     pkgfile_path = os.path.join(port_path, 'Pkgfile')
@@ -115,7 +116,7 @@ def rsync(ports_path, web_ports_path):
                            "--exclude","README.md",
                            ports_path, web_ports_path])
   except Exception as e:
-    print "An error occurred with rsync: {}".format(str(e))
+    print("An error occurred with rsync: {}".format(str(e)))
     return 1
 
 def httpup_repgen(web_ports_path):
@@ -124,7 +125,7 @@ def httpup_repgen(web_ports_path):
     subprocess.check_call(["httpup-repgen", web_ports_path], stdout=FNULL, stderr=FNULL, close_fds=True)
     FNULL.close()
   except Exception as e:
-    print "An error occurred with httpup-repgen: {}".format(str(e))
+    print("An error occurred with httpup-repgen: {}".format(str(e)))
     return 1
 
 if __name__ == "__main__":
