@@ -27,11 +27,10 @@ def main():
   ports_path = args.SRC
   if (ports_path[-1] != '/'):
     ports_path += '/'
-  # web_ports_path = '/home/conrad/netfile/www/crux/'
   web_ports_path = args.DEST
   if (web_ports_path[-1] != '/'):
     web_ports_path += '/'
-  ports_url = 'https://www3.nd.edu/~cbailey8/crux/'
+  ports_url = './'
 
   # check that things are where they should be
   for path in [web_ports_path, ports_path, crux_org_path]:
@@ -45,7 +44,7 @@ def main():
 
   org_options = '''#+TITLE:       CRUX Ports
 #+AUTHOR:      Conrad Bailey
-#+EMAIL:       conradbailey92@gmail.com
+#+EMAIL:       conrad@cbailey.tech
 #+LANGUAGE:    en
 #+OPTIONS:     H:3 num:nil \\n:nil toc:nil ::t |:t ^:nil -:nil f:t *:t <:t
 #+DESCRIPTION: My personal CRUX Linux ports repository
